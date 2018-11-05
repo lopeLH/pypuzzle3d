@@ -1,4 +1,4 @@
-# 3x3x3-Cube-Puzzle-Solver
+# 3x3x3 Cube Puzzle Solver
 Python code to find all solutions of arbitrary 3x3x3 cube puzzles.
 
 Solutions are saved as images in the following format:

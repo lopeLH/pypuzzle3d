@@ -4,7 +4,7 @@ While having a coffee at UCLouvain's caffeteria with some colleagues, I saw a 3x
 
 -- "Don't worry. That puzzle is super easy to solve. In fact there are many different ways to assemble it."
 
-That smade me wonder exactly how many different solutions that puzzle had... so I created this automatic, pseudo brute-force puzzle solver to figure out. 
+That made me wonder exactly how many different solutions that puzzle had... so I created this automatic, pseudo brute-force puzzle solver to figure out. 
 
 This Python code is designed find all unique solutions of arbitrary 3x3x3 cube puzzles, exhaustively exploring the space of piece placement possitions, prunning the branches in which no solution can be found to make things faster. The solver takes the shape of the individual figures as the input.
 

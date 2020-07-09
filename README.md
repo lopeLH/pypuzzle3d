@@ -1,7 +1,7 @@
 # 3x3x3 Cube Puzzle Solver
-
-![Python Linting](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/workflows/Python%20Linting/badge.svg?branch=master)
-![Tests](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/workflows/Tests/badge.svg?branch=master)
+![Package Installation](https://github.com/lopeLH/pypuzzle3d/workflows/Package%20Installation/badge.svg?branch=master)
+![Tests](https://github.com/lopeLH/pypuzzle3d/workflows/Tests/badge.svg?branch=master)
+![Python Linting](https://github.com/lopeLH/pypuzzle3d/workflows/Python%20Linting/badge.svg?branch=master)
 
 While having a coffee at UCLouvain's caffeteria with some colleagues, I saw a 3x3x3 wooden cube sitting on a table. When out of curiosity I grabed it, it fell apart into 6 pieces. Scared for breaking it, I looked at one of my colleagues who said:
 

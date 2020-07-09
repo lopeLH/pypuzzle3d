@@ -15,6 +15,7 @@ jobs:
         python-version: 3.8
     - name: Run tests
       run: |
-        pip3 install pytest
+        pip3 install pytest, setuptools
+        ./ci/setup.sh
         ./ci/tests.sh
 

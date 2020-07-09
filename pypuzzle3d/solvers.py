@@ -6,14 +6,14 @@ from pypuzzle3d.utils import rotations24, fingerprint
 
 
 @jit(nopython=True)
-def place(p, wo, l):
-    """ Place a figure p in the world representation wo at location l
+def place(piece, wo, location):
+    """ Place a figure piece in the world representation wo at location l
         then return the resulting world representation
     """
     # Note that we copy the input world representation so we dont modify it.
     w = wo.copy()
-    for i in range(p.shape[0]):
-        w[2 + l[0] + p[i][0], 2 + l[1] + p[i][1], 2 + l[2] + p[i][2]] += 1
+    for i in range(piece.shape[0]):
+        w[2 + location[0] + piece[i][0], 2 + location[1] + piece[i][1], 2 + location[2] + piece[i][2]] += 1
 
     return w
 

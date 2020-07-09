@@ -1,5 +1,7 @@
 # 3x3x3 Cube Puzzle Solver
 
+![Python Linting](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/workflows/Python%20Linting/badge.svg?branch=master)
+
 While having a coffee at UCLouvain's caffeteria with some colleagues, I saw a 3x3x3 wooden cube sitting on a table. When out of curiosity I grabed it, it fell apart into 6 pieces. Scared for breaking it, I looked at one of my colleagues who said:
 
 -- "Don't worry. That puzzle is super easy to solve. In fact there are many different ways to assemble it."

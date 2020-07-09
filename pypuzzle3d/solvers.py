@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob
 from numba import jit
+import itertools
+from pypuzzle3d.utils import rotations24, fingerprint
+from pypuzzle3d.visualization import drawState
 
 
 @jit(nopython=True)
@@ -13,7 +16,7 @@ def place(p, wo, l):
     # Note that we copy the input world representation so we dont modify it.
     w = wo.copy()
     for i in range(p.shape[0]):
-        w[2+l[0]+p[i][0], 2+l[1]+p[i][1], 2+l[2]+p[i][2]] += 1
+        w[2 + l[0] + p[i][0], 2 + l[1] + p[i][1], 2 + l[2] + p[i][2]] += 1
 
     return w
 
@@ -24,7 +27,7 @@ def check(w):
          a) no figures overlap in space
          b) no figures are outside of the 3x3x3 cube
     """
-    if np.sum(w>1) == 0 and (np.sum(w)-np.sum(w[2:5, 2:5,2:5])) == 0:
+    if np.sum(w > 1) == 0 and (np.sum(w) - np.sum(w[2:5, 2:5, 2:5])) == 0:
         return True
     else:
         return False
@@ -46,44 +49,44 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
                 the 3x3x3 cube.
     soFar:      No need to set this variable manually. List of the figures we have placeed so far, alongside with their
                 location. Each recursive call creates its own copy of this variable.
-    solutions:  No need to set this variable manually. List of solutions found so far. 
+    solutions:  No need to set this variable manually. List of solutions found so far.
     """
 
-    # Some variables are initialized by the first call to the function explore() 
-    # The conde inside these If's is executed only at the top call in the recursive tree 
-    if type(solutions) == type(None):
+    # Some variables are initialized by the first call to the function explore()
+    # The conde inside these If's is executed only at the top call in the recursive tree
+    if solutions is None:
         solutions = []
         if np.sum([piece.shape[1] for piece in pieces]) != 3**3:
             return []
 
-    if type(world) == type(None):
-        world = np.zeros((7,7,7), np.int32)
+    if world is None:
+        world = np.zeros((7, 7, 7), np.int32)
 
-    if type(n_pieces) == type(None):
+    if n_pieces is None:
         n_pieces = len(pieces)
 
     # Generate all posible locations [(0,0,0), (0,0,1), ...]
-    loc = np.asarray(list(itertools.product([0,1,2],[0,1,2],[0,1,2])), dtype=np.int32)
+    loc = np.asarray(list(itertools.product([0, 1, 2], [0, 1, 2], [0, 1, 2])), dtype=np.int32)
 
     # For each orientation of the first piece in the list of pieces...
     for orient in pieces[0]:
         # For each posible location ...
         for l in loc:
-            #We place the piece with the current orientation in the current location
+            # We place the piece with the current orientation in the current location
             worldT = place(orient, world, l)
 
-            #Then we evaluate the resulting representation of the world.
+            # Then we evaluate the resulting representation of the world.
             # If no blocks are outside of the 3x3x3 cube and no pieces overlap...
             if check(worldT):
                 soFarT = list(soFar)
                 soFarT.append([orient, l])
 
-                plti = int(sorted(glob.glob("gif/*.png"), reverse=True)[0].split("/")[1].split(".")[0])+1
+                plti = int(sorted(glob.glob("gif/*.png"), reverse=True)[0].split("/")[1].split(".")[0]) + 1
                 drawState(soFarT, i=plti)
                 plt.savefig(f"gif/{plti:05d}.png")
 
                 # If the piece we just placed was the last one, we have found a solution
-                if len(soFar) == (n_pieces-1):
+                if len(soFar) == (n_pieces - 1):
                     # add the solution we just found to the list of solutions... and keep searching
                     solutions.append(soFarT)
                     solutions = findUnique(solutions)
@@ -115,3 +118,66 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
 
     # finally, return all solutions found
     return solutions
+
+
+def findUnique(solutions, verbose=False):
+    """
+    Takes a set of non-unique solutions to a 3x3x3 puzzle and returns a list of unique solutions. That is, given
+    a solution, do not consider the 26 rotated versions of that cube as different solutions.
+
+    The idea is simple: initialize a list with the first solution found. Then, for each non-unique solution, test if
+    a rotated version of it is in the that list. If not, add it to the list.
+
+    IMPORTANT NOTE: If the puzzle contains two identical pieces, this function will identify two solutions where the
+    identical pieces are swaped as different. This can be modified altering the variable keys in function fingerprint()
+
+    Parameters
+    ----------
+
+    solutions:  list of non-unique solutions as returned by explore()
+
+    """
+
+    # initialize list of unique solutions
+    unique_success = [solutions[0]]
+
+    # initialize a list with the fingerprints of unique solutions
+    # in this context a fingerprint is a 3x3x3 matrix where each entry is an integer representing
+    # the figure that occupies that region of space. Each figure/piece has a different integer identifier
+    unique_finger = [fingerprint(solutions[0])]
+
+    if verbose:
+        print("Unique found... (%d)." % (len(unique_success)))
+
+    i = 0
+    # for each solution in the list of non-unique solutions...
+    for suc in solutions[1:]:
+
+        # generate the 24 rotated versions of one fingerprint of the solution
+        rots = rotations24(fingerprint(suc))
+
+        # by default, assume this solution is one we have not seen before
+        unique_flag = True
+
+        # if any of the rotated fingerprints of the solution is in our list of fingerprints,
+        # the solution is not a new one. Mark the flag as false.
+        for rot in rots:
+            for uni in unique_finger:
+                if np.all(rot == uni):
+                    unique_flag = False
+
+        if verbose and i % 100 == 0:
+            print("Progress: %.2f%%" % (100 * i / float(len(solutions))))
+
+        # If none of the rotated versions of the solution is in our list of fingerprints, the solution
+        # is indeed new. We add it to the list of unique solutions, and its fingerprint to the list of
+        # fingerprints.
+        if unique_flag:
+            unique_finger.append(fingerprint(suc))
+            unique_success.append(suc)
+            if verbose:
+                print("Unique found... (%d)." % (len(unique_success)))
+
+        i += 1
+
+    return unique_success

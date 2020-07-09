@@ -1,9 +1,9 @@
-name: Tests
+name: Package Installation
 
 on: [push]
 
 jobs:
-  tests:
+  setup:
 
     runs-on: ubuntu-latest
 
@@ -13,8 +13,7 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.8
-    - name: Run tests
+    - name: Package Setup
       run: |
-        pip3 install pytest
-        ./ci/tests.sh
-
+        pip install setuptools
+        ./ci/setup.sh

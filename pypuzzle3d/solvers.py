@@ -76,10 +76,10 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
     for orient in pieces[0]:
 
         # For each posible location ...
-        for l in loc:
+        for lentry in loc:
 
             # We place the piece with the current orientation in the current location
-            worldT = place(orient, world, l)
+            worldT = place(orient, world, lentry)
 
             # Then we evaluate the resulting representation of the world.
             # If no blocks are outside of the 3x3x3 cube and no pieces overlap...
@@ -92,7 +92,7 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
                     soFarT = list(soFar)
 
                     # add the last movement we made, which completed the solution
-                    soFarT.append([orient, l])
+                    soFarT.append([orient, lentry])
 
                     # add the solution we just found to the list of solutions... and keep searching
                     solutions.append(soFarT)
@@ -110,7 +110,7 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
                     soFarT = list(soFar)
 
                     # add the last movement we made
-                    soFarT.append([orient, l])
+                    soFarT.append([orient, lentry])
 
                     # recursivelly cal explore(), setting pieces=pieces[1:], so the recursive call only has to place
                     # the remaining pieces to finish the puzzle. This limits the depth of the recursive tree to the

@@ -5,7 +5,7 @@
 
 While having a coffee at UCLouvain's caffeteria with some colleagues, I saw a 3x3x3 wooden cube sitting on a table. When out of curiosity I grabed it, it fell apart into 6 pieces. Scared for breaking it, I looked at one of my colleagues who said:
 
--- "Don't worry. That puzzle is super easy to solve. In fact there are many different ways to assemble it."
+-- *"Don't worry. That puzzle is super easy to solve. In fact there are many different ways to assemble it."*
 
 That made me wonder exactly how many different solutions that puzzle had... so I created this automatic, pseudo brute-force puzzle solver to figure out. 
 
@@ -15,5 +15,5 @@ Aside from standard libraries (numpy, matplotlib...), this code requires numba a
 
 Solutions are saved as images in the following format:
 
-![alt text](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/blob/master/solution-1.png)
+![alt text](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/blob/master/examples/solution-1.png)
 

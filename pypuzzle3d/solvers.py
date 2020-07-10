@@ -2,7 +2,12 @@
 import numpy as np
 from numba import jit
 import itertools
-from pypuzzle3d.utils import rotations24, fingerprint
+from pypuzzle3d.utils import rotations24, fingerprint, figureGen
+
+
+def find_solutions(pieces):
+    pieces_poses = [figureGen(piece) for piece in pieces]
+    return explore(pieces_poses)
 
 
 @jit(nopython=True)

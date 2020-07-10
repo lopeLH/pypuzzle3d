@@ -11,9 +11,11 @@ That made me wonder exactly how many different solutions that puzzle had... so I
 
 This Python code is designed find all unique solutions of arbitrary 3x3x3 cube puzzles, exhaustively exploring the space of piece placement possitions, prunning the branches in which no solution can be found to make things faster. The solver takes the shape of the individual figures as the input.
 
+<img src="https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/blob/master/examples/images/animation.gif" alt="drawing" width="300"/>
+
 Aside from standard libraries (numpy, matplotlib...), this code requires numba and seaborn libraries. 
 
 Solutions are saved as images in the following format:
 
-![alt text](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/blob/master/examples/solution-1.png)
+![alt text](https://github.com/lopeLH/3x3x3-Cube-Puzzle-Solver/blob/master/examples/images/solution-1.png)
 

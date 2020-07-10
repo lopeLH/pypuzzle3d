@@ -5,9 +5,9 @@ import itertools
 from pypuzzle3d.utils import rotations24, fingerprint, figureGen
 
 
-def find_solutions(pieces):
+def find_solutions(pieces, max_solutions=None):
     pieces_poses = [figureGen(piece) for piece in pieces]
-    return explore(pieces_poses)
+    return explore(pieces_poses, max_solutions=max_solutions)
 
 
 @jit(nopython=True)
@@ -35,7 +35,7 @@ def check(w):
         return False
 
 
-def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_solutions=None, verbose=True):
+def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_solutions=None, verbose=False):
     """
     Main function for the exploration of solutions. Recursivelly explores al posible combinations of positions
     and orientations of the pieces, pruning branches when a non-valid configuration is found. This exploits the fact

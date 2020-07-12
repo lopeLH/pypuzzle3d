@@ -2,11 +2,11 @@
 import numpy as np
 from numba import jit
 import itertools
-from pypuzzle3d.utils import rotations24, fingerprint, figureGen
+from pypuzzle3d.utils import rotations24, fingerprint, piece_to_unique_rotations_as_block_lists
 
 
 def find_solutions(pieces, max_solutions=None):
-    pieces_poses = [figureGen(piece) for piece in pieces]
+    pieces_poses = [piece_to_unique_rotations_as_block_lists(piece) for piece in pieces]
     return explore(pieces_poses, max_solutions=max_solutions)
 
 
@@ -129,9 +129,9 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
     # Note that, if a particular orientation of a piece cant be placed successfully, we do not explore that branch
     # in the tree of possible combinations, so we are effectively pruning this tree, making things faster.
     # This is much faster that the naive brute force approach of testing all posible piece-orientation-location
-    # combinations looking for solutions. Another trick to speed things up is the fact that the function figureGen()
-    # removes orientations that are equivalent for pieces with symmetry, so not all pieces have 26
-    # different orientations.
+    # combinations looking for solutions. Another trick to speed things up is the fact that the function
+    # piece_to_unique_rotations_as_block_lists() removes orientations that are equivalent for pieces with symmetry,
+    # so not all pieces have 26 different orientations.
 
     # finally, return all solutions found
     return solutions

@@ -1,5 +1,5 @@
 from itertools import combinations
-from pypuzzle3d.utils import figureGen
+from pypuzzle3d.utils import piece_to_unique_rotations_as_block_lists
 from pypuzzle3d.visualization import drawMoves
 from pypuzzle3d.solvers import explore
 import numpy as np
@@ -7,7 +7,7 @@ import numpy as np
 
 def generate_and_solve_puzzles_from_set_of_pieces(pieces_set, max_solutions=None, n_pieces_in_puzzle=4, verbose=False):
 
-    pieces_poses = np.asarray([figureGen(f) for f in pieces_set])
+    pieces_poses = np.asarray([piece_to_unique_rotations_as_block_lists(f) for f in pieces_set])
     combinations_of_picece_indexes = list(combinations(range(len(pieces_poses)), n_pieces_in_puzzle))
 
     all_solutions = []

@@ -100,7 +100,7 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
                 soFarT = soFar.copy()
                 soFarT.append((orient, location))
                 first_level_branches_to_explore.append(
-                    [pieces[1:].copy(), n_pieces, worldT.copy(), soFarT.copy(), solutions.copy(), max_solutions])
+                    [pieces[1:], n_pieces, worldT, soFarT, solutions, max_solutions])
 
     with ThreadPool() as p:
         multiprocessing_results = p.imap_unordered(lambda x: explore_deep(*x), first_level_branches_to_explore)

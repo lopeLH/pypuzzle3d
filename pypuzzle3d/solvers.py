@@ -81,7 +81,7 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
 
     pieces = List(pieces)
     # Generate all posible locations [(0,0,0), (0,0,1), ...]
-    loc = np.asarray(list(itertools.product([0, 1, 2], [0, 1, 2], [0, 1, 2])), dtype=np.int32)
+    locations = np.asarray(list(itertools.product([0, 1, 2], [0, 1, 2], [0, 1, 2])), dtype=np.int32)
 
     first_level_branches_to_explore = []
 
@@ -89,16 +89,16 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
     for orient in pieces[0]:
 
         # For each posible location ...
-        for l in loc:
+        for location in locations:
 
             # We place the piece with the current orientation in the current location
-            worldT = place(orient, world, l)
+            worldT = place(orient, world, location)
 
             # Then we evaluate the resulting representation of the world.
             # If no blocks are outside of the 3x3x3 cube and no pieces overlap...
             if check(worldT):
                 soFarT = soFar.copy()
-                soFarT.append((orient, l))
+                soFarT.append((orient, location))
                 first_level_branches_to_explore.append(
                     [pieces[1:].copy(), n_pieces, worldT.copy(), soFarT.copy(), solutions.copy(), max_solutions])
 

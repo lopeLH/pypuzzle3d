@@ -5,7 +5,7 @@ from numba.typed import List
 import numba
 import itertools
 from pypuzzle3d.utils import rotations24, fingerprint, piece_to_unique_rotations_as_block_lists, itertools_product
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 
 
 def find_solutions(pieces, max_solutions=None):
@@ -13,7 +13,7 @@ def find_solutions(pieces, max_solutions=None):
     return explore(pieces_poses, max_solutions=max_solutions)
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def place(p, wo, l):
     """ Place a figure p in the world representation wo at location l
         then return the resulting world representation
@@ -26,7 +26,7 @@ def place(p, wo, l):
     return w
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def check(w):
     """ Check if a world representation w is valid:
          a) no figures overlap in space
@@ -84,6 +84,8 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
     # Generate all posible locations [(0,0,0), (0,0,1), ...]
     loc = np.asarray(list(itertools.product([0, 1, 2], [0, 1, 2], [0, 1, 2])), dtype=np.int32)
 
+    first_level_branches_to_explore = []
+
     # For each orientation of the first piece in the list of pieces...
     for orient in pieces[0]:
 
@@ -98,15 +100,29 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
             if check(worldT):
                 soFarT = soFar.copy()
                 soFarT.append((orient, l))
-                solutions = explore_deep(pieces[1:], n_pieces=n_pieces, world=worldT, soFar=soFarT,
-                                         solutions=solutions,
-                                         max_solutions=max_solutions)
+                first_level_branches_to_explore.append(
+                    [pieces[1:].copy(), n_pieces, worldT.copy(), soFarT.copy(), solutions.copy(), max_solutions])
+
+    with ThreadPool() as p:
+        multiprocessing_results = p.imap_unordered(lambda x: explore_deep(*x), first_level_branches_to_explore)
+
+        for solutions_from_brach in multiprocessing_results:
+            if solutions_from_brach is None:
+                return None
+            for solution in solutions_from_brach:
+                solutions.append(solution)
+
+            solutions = findUnique(solutions)
+            if verbose and len(solutions) > 0 and len(solutions_from_brach) > 0:
+                print(f"Found unique solutions: {len(solution)}")
+            if max_solutions is not None and len(solutions) > max_solutions:
+                return None
 
     return solutions
 
 
-@jit(nopython=True)
-def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None, verbose=True):
+@jit(nopython=True, nogil=True)
+def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None):
 
     loc = itertools_product((0, 1, 2), (0, 1, 2), (0, 1, 2))
 
@@ -124,12 +140,7 @@ def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None, 
                     solutions = findUnique(solutions)
                     n_solutions = len(solutions)
 
-                    if verbose:
-                        print("Found solution.")
-                        print(n_solutions)
                     if max_solutions is not None and n_solutions > max_solutions:
-                        if verbose:
-                            print("Max solutions exceeded.")
                         return None
 
                 else:
@@ -144,7 +155,7 @@ def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None, 
     return solutions
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def findUnique(solutions, verbose=False):
     """
     Takes a set of non-unique solutions to a 3x3x3 puzzle and returns a list of unique solutions. That is, given
@@ -163,6 +174,8 @@ def findUnique(solutions, verbose=False):
 
     """
 
+    if len(solutions) < 2:
+        return solutions
     # initialize list of unique solutions
     unique_success = solutions.copy()[:1]
 

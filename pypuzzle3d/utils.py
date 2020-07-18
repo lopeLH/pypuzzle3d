@@ -2,7 +2,7 @@ import numpy as np
 from numba import jit
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def itertools_product(elements1, elements2, elements3):
 
     n_combinations = len(elements1) * len(elements2) * len(elements3)
@@ -18,7 +18,7 @@ def itertools_product(elements1, elements2, elements3):
     return combinations
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def make_occupacy_array_cubic(piece):
     assert piece.ndim == 3, "Input array must be exactly 3-dimensional"
     assert np.sum(piece) != 0, "Empty input occupancy array"
@@ -31,7 +31,7 @@ def make_occupacy_array_cubic(piece):
         return cubic_piece
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def rotations24(piece):
     """ Generate all 24 possible orientations of an input piece.
     Args:
@@ -57,7 +57,7 @@ def rotations24(piece):
     return out.reshape(6 * 8, *piece.shape)[idx]
 
 
-@jit(nopython=True)
+@jit(nopython=True, nogil=True)
 def fingerprint(sol):
     world = np.zeros((7, 7, 7), np.int32)
     keys = np.arange(1, 100)

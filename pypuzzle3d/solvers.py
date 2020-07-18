@@ -1,8 +1,11 @@
 # These are the core functions of the algorithm.
 import numpy as np
 from numba import jit
+from numba.typed import List
+import numba
 import itertools
-from pypuzzle3d.utils import rotations24, fingerprint, piece_to_unique_rotations_as_block_lists
+from pypuzzle3d.utils import rotations24, fingerprint, piece_to_unique_rotations_as_block_lists, itertools_product
+from multiprocessing import Pool
 
 
 def find_solutions(pieces, max_solutions=None):
@@ -11,14 +14,14 @@ def find_solutions(pieces, max_solutions=None):
 
 
 @jit(nopython=True)
-def place(piece, wo, location):
-    """ Place a figure piece in the world representation wo at location l
+def place(p, wo, l):
+    """ Place a figure p in the world representation wo at location l
         then return the resulting world representation
     """
     # Note that we copy the input world representation so we dont modify it.
     w = wo.copy()
-    for i in range(piece.shape[0]):
-        w[2 + location[0] + piece[i][0], 2 + location[1] + piece[i][1], 2 + location[2] + piece[i][2]] += 1
+    for i in range(p.shape[0]):
+        w[2+l[0]+p[i][0], 2+l[1]+p[i][1], 2+l[2]+p[i][2]] += 1
 
     return w
 
@@ -29,13 +32,13 @@ def check(w):
          a) no figures overlap in space
          b) no figures are outside of the 3x3x3 cube
     """
-    if np.sum(w > 1) == 0 and (np.sum(w) - np.sum(w[2:5, 2:5, 2:5])) == 0:
+    if np.sum(w > 1) == 0 and (np.sum(w)-np.sum(w[2:5, 2:5, 2:5])) == 0:
         return True
     else:
         return False
 
 
-def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_solutions=None, verbose=False):
+def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_solutions=None, verbose=True):
     """
     Main function for the exploration of solutions. Recursivelly explores al posible combinations of positions
     and orientations of the pieces, pruning branches when a non-valid configuration is found. This exploits the fact
@@ -62,18 +65,22 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
 
     # Some variables are initialized by the first call to the function explore()
     # The conde inside these If's is executed only at the top call in the recursive tree
-
-    if isinstance(solutions, type(None)):
-        solutions = []
+    assert len(pieces) > 1, "Solving a puzzle of 1 piece does not make much sense."
+    if solutions is None:
+        solutions = List.empty_list(numba.core.types.ListType(numba.core.types.Tuple([numba.types.int32[:, :],
+                                                                                      numba.types.int32[:]])))
         if np.sum([piece.shape[1] for piece in pieces]) != 3**3:
             return []
+    if soFar is None:
+        soFar = List.empty_list(numba.core.types.Tuple([numba.types.int32[:, :], numba.types.int32[:]]))
 
-    if isinstance(world, type(None)):
+    if world is None:
         world = np.zeros((7, 7, 7), np.int32)
 
-    if isinstance(n_pieces, type(None)):
+    if n_pieces is None:
         n_pieces = len(pieces)
 
+    pieces = List(pieces)
     # Generate all posible locations [(0,0,0), (0,0,1), ...]
     loc = np.asarray(list(itertools.product([0, 1, 2], [0, 1, 2], [0, 1, 2])), dtype=np.int32)
 
@@ -81,69 +88,70 @@ def explore(pieces, n_pieces=None, world=None, soFar=[], solutions=None, max_sol
     for orient in pieces[0]:
 
         # For each posible location ...
-        for lentry in loc:
+        for l in loc:
 
             # We place the piece with the current orientation in the current location
-            worldT = place(orient, world, lentry)
+            worldT = place(orient, world, l)
 
             # Then we evaluate the resulting representation of the world.
             # If no blocks are outside of the 3x3x3 cube and no pieces overlap...
             if check(worldT):
+                soFarT = soFar.copy()
+                soFarT.append((orient, l))
+                solutions = explore_deep(pieces[1:], n_pieces=n_pieces, world=worldT, soFar=soFarT,
+                                         solutions=solutions,
+                                         max_solutions=max_solutions)
 
-                # If the piece we just placed was the last one, we have found a solution
-                if len(soFar) == (n_pieces - 1):
-
-                    # create a copy of the list of movements that took us here
-                    soFarT = list(soFar)
-
-                    # add the last movement we made, which completed the solution
-                    soFarT.append([orient, lentry])
-
-                    # add the solution we just found to the list of solutions... and keep searching
-                    solutions.append(soFarT)
-                    solutions = findUnique(solutions)
-                    if verbose:
-                        print("Solution %d found." % (len(solutions)))
-                    if max_solutions is not None and len(solutions) > max_solutions:
-                        if verbose:
-                            print("Max_solutions exceeded. Aborting search.")
-                        return None
-
-                # If the piece we just placed is not the last one...
-                else:
-                    # Create a copy of the list of movements we have made (so recursive calls do not modify our copy)
-                    soFarT = list(soFar)
-
-                    # add the last movement we made
-                    soFarT.append([orient, lentry])
-
-                    # recursivelly cal explore(), setting pieces=pieces[1:], so the recursive call only has to place
-                    # the remaining pieces to finish the puzzle. This limits the depth of the recursive tree to the
-                    # number of pieces in the puzzle
-                    solutions = explore(pieces[1:], n_pieces=n_pieces, world=worldT, soFar=soFarT,
-                                        solutions=solutions, max_solutions=max_solutions)
-
-                    if solutions is None:
-                        return None
-
-    # Note that, if a particular orientation of a piece cant be placed successfully, we do not explore that branch
-    # in the tree of possible combinations, so we are effectively pruning this tree, making things faster.
-    # This is much faster that the naive brute force approach of testing all posible piece-orientation-location
-    # combinations looking for solutions. Another trick to speed things up is the fact that the function
-    # piece_to_unique_rotations_as_block_lists() removes orientations that are equivalent for pieces with symmetry,
-    # so not all pieces have 26 different orientations.
-
-    # finally, return all solutions found
     return solutions
 
 
+@jit(nopython=True)
+def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None, verbose=True):
+
+    loc = itertools_product((0, 1, 2), (0, 1, 2), (0, 1, 2))
+
+    for orient in pieces[0]:
+        for l in loc:
+
+            worldT = place(orient, world, l)
+
+            if check(worldT):
+                if len(soFar) == (n_pieces-1):
+
+                    soFarT = soFar.copy()
+                    soFarT.append((orient, l))
+                    solutions.append(soFarT)
+                    solutions = findUnique(solutions)
+                    n_solutions = len(solutions)
+
+                    if verbose:
+                        print("Found solution.")
+                        print(n_solutions)
+                    if max_solutions is not None and n_solutions > max_solutions:
+                        if verbose:
+                            print("Max solutions exceeded.")
+                        return None
+
+                else:
+                    soFarT = soFar.copy()
+                    soFarT.append((orient, l))
+
+                    solutions = explore_deep(pieces[1:], n_pieces=n_pieces, world=worldT, soFar=soFarT,
+                                             solutions=solutions, max_solutions=max_solutions)
+                    if solutions is None:
+                        return None
+
+    return solutions
+
+
+@jit(nopython=True)
 def findUnique(solutions, verbose=False):
     """
     Takes a set of non-unique solutions to a 3x3x3 puzzle and returns a list of unique solutions. That is, given
     a solution, do not consider the 26 rotated versions of that cube as different solutions.
 
-    The idea is simple: initialize a list with the first solution found. Then, for each non-unique solution, test if
-    a rotated version of it is in the that list. If not, add it to the list.
+    The idea is simple: initialize a list with the first solution found. Then, for each non-unique solution, test if a
+    rotated version of it is in the that list. If not, add it to the list.
 
     IMPORTANT NOTE: If the puzzle contains two identical pieces, this function will identify two solutions where the
     identical pieces are swaped as different. This can be modified altering the variable keys in function fingerprint()
@@ -156,7 +164,7 @@ def findUnique(solutions, verbose=False):
     """
 
     # initialize list of unique solutions
-    unique_success = [solutions[0]]
+    unique_success = solutions.copy()[:1]
 
     # initialize a list with the fingerprints of unique solutions
     # in this context a fingerprint is a 3x3x3 matrix where each entry is an integer representing
@@ -164,7 +172,8 @@ def findUnique(solutions, verbose=False):
     unique_finger = [fingerprint(solutions[0])]
 
     if verbose:
-        print("Unique found... (%d)." % (len(unique_success)))
+        print("Unique found... ")
+        print(len(unique_success))
 
     i = 0
     # for each solution in the list of non-unique solutions...
@@ -183,9 +192,6 @@ def findUnique(solutions, verbose=False):
                 if np.all(rot == uni):
                     unique_flag = False
 
-        if verbose and i % 100 == 0:
-            print("Progress: %.2f%%" % (100 * i / float(len(solutions))))
-
         # If none of the rotated versions of the solution is in our list of fingerprints, the solution
         # is indeed new. We add it to the list of unique solutions, and its fingerprint to the list of
         # fingerprints.
@@ -193,8 +199,7 @@ def findUnique(solutions, verbose=False):
             unique_finger.append(fingerprint(suc))
             unique_success.append(suc)
             if verbose:
-                print("Unique found... (%d)." % (len(unique_success)))
-
+                print("Unique found... ")
+                print(len(unique_success))
         i += 1
-
     return unique_success

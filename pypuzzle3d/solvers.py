@@ -14,25 +14,24 @@ def find_solutions(pieces, max_solutions=None):
 
 
 @jit(nopython=True, nogil=True)
-def place(p, wo, l):
-    """ Place a figure p in the world representation wo at location l
-        then return the resulting world representation
-    """
-    # Note that we copy the input world representation so we dont modify it.
-    w = wo.copy()
-    for i in range(p.shape[0]):
-        w[2+l[0]+p[i][0], 2+l[1]+p[i][1], 2+l[2]+p[i][2]] += 1
+def place(piece, world, location):
+    # Note that we copy the input world representation so we don't modify it.
+    world_copy = world.copy()
+    for i in range(piece.shape[0]):
+        world_copy[2+location[0]+piece[i][0],
+                   2+location[1]+piece[i][1],
+                   2+location[2]+piece[i][2]] += 1
 
-    return w
+    return world_copy
 
 
 @jit(nopython=True, nogil=True)
-def check(w):
+def check(world):
     """ Check if a world representation w is valid:
          a) no figures overlap in space
          b) no figures are outside of the 3x3x3 cube
     """
-    if np.sum(w > 1) == 0 and (np.sum(w)-np.sum(w[2:5, 2:5, 2:5])) == 0:
+    if np.sum(world > 1) == 0 and (np.sum(world)-np.sum(world[2:5, 2:5, 2:5])) == 0:
         return True
     else:
         return False
@@ -114,7 +113,7 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
 
             solutions = findUnique(solutions)
             if verbose and len(solutions) > 0 and len(solutions_from_brach) > 0:
-                print(f"Found unique solutions: {len(solution)}")
+                print(f"Found {len(solution)} unique solutions.")
             if max_solutions is not None and len(solutions) > max_solutions:
                 return None
 
@@ -124,18 +123,18 @@ def explore(pieces, n_pieces=None, world=None, soFar=None, solutions=None, max_s
 @jit(nopython=True, nogil=True)
 def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None):
 
-    loc = itertools_product((0, 1, 2), (0, 1, 2), (0, 1, 2))
+    locations = itertools_product((0, 1, 2), (0, 1, 2), (0, 1, 2))
 
     for orient in pieces[0]:
-        for l in loc:
+        for location in locations:
 
-            worldT = place(orient, world, l)
+            worldT = place(orient, world, location)
 
             if check(worldT):
                 if len(soFar) == (n_pieces-1):
 
                     soFarT = soFar.copy()
-                    soFarT.append((orient, l))
+                    soFarT.append((orient, location))
                     solutions.append(soFarT)
                     solutions = findUnique(solutions)
                     n_solutions = len(solutions)
@@ -145,7 +144,7 @@ def explore_deep(pieces, n_pieces, world, soFar, solutions, max_solutions=None):
 
                 else:
                     soFarT = soFar.copy()
-                    soFarT.append((orient, l))
+                    soFarT.append((orient, location))
 
                     solutions = explore_deep(pieces[1:], n_pieces=n_pieces, world=worldT, soFar=soFarT,
                                              solutions=solutions, max_solutions=max_solutions)

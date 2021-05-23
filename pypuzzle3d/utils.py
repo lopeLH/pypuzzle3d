@@ -1,10 +1,11 @@
 import numpy as np
 from numba import jit
 
+
 @jit(nopython=True, nogil=True)
 def infer_margin_size_from_world(world):
-    #assert len(world.shape) == 3
-    #assert world.shape[0] == world.shape[1] == world.shape[2]
+    assert len(world.shape) == 3
+    assert world.shape[0] == world.shape[1] == world.shape[2]
 
     # Based on the heuristic that a puzzle of size SxSxS needs a margin of S on each side to make sure we don't
     # try to place pieces outside the world array representation, assuming pieces are at most of size S.

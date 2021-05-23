@@ -2,6 +2,7 @@ import pytest
 from pypuzzle3d.solvers import find_solutions
 from pypuzzle3d.puzzle_design_helpers import generate_and_solve_puzzles_from_set_of_pieces
 from fixtures import some_pieces
+import numpy as np
 
 
 def test_core_function_can_be_imported():
@@ -11,6 +12,11 @@ def test_core_function_can_be_imported():
 def test_generate_and_solve_puzzles_from_set_of_pieces(some_pieces):
     all_solutions = generate_and_solve_puzzles_from_set_of_pieces(some_pieces)
     assert all_solutions is not None
+
+
+def test_raises_if_some_piece_is_larger_than_the_assembled_puzzle():
+    with pytest.raises(ValueError):
+        find_solutions([np.ones((3,3,3)), np.ones((4,3,3))])
 
 
 def test_solves_example_puzzles(example_puzzles_with_solution_number):

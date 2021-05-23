@@ -4,12 +4,19 @@ from numba import jit
 from numba.typed import List
 import numba
 import itertools
-from pypuzzle3d.utils import rotations24, fingerprint, piece_to_unique_rotations_as_block_lists
-from pypuzzle3d import settings
+from pypuzzle3d.utils import rotations24, fingerprint, piece_to_unique_rotations_as_block_lists, \
+    infer_margin_size_from_world
 from multiprocessing.pool import ThreadPool
 
 
 def find_solutions(pieces, assembled_puzzle_shape=np.ones((3, 3, 3)), max_solutions=None):
+    assert len(assembled_puzzle_shape.shape) == 3
+    assert assembled_puzzle_shape.shape[0] == assembled_puzzle_shape.shape[1] == assembled_puzzle_shape.shape[2]
+
+    for piece in pieces:
+        if np.max(piece.shape) > assembled_puzzle_shape.shape[0]:
+            raise ValueError("The puzzle contains a piece larger than the assembled puzzle. No solutions can be found.")
+
     pieces_poses = [piece_to_unique_rotations_as_block_lists(piece) for piece in pieces]
     return explore(pieces_poses, assembled_puzzle_shape=assembled_puzzle_shape, max_solutions=max_solutions)
 
@@ -18,19 +25,19 @@ def find_solutions(pieces, assembled_puzzle_shape=np.ones((3, 3, 3)), max_soluti
 def place(piece, world, location):
     # Note that we copy the input world representation so we don't modify it.
     world_copy = world.copy()
+    margin = infer_margin_size_from_world(world)
     for i in range(piece.shape[0]):
-        world_copy[2+location[0]+piece[i][0],
-                   2+location[1]+piece[i][1],
-                   2+location[2]+piece[i][2]] += 1
+        world_copy[margin+location[0]+piece[i][0],
+                   margin+location[1]+piece[i][1],
+                   margin+location[2]+piece[i][2]] += 1
 
     return world_copy
 
 
 @jit(nopython=True, nogil=True)
 def is_solved(world, assembled_puzzle_shape):
-    word_in_margings = world[settings.MARGING:-settings.MARGING,
-                             settings.MARGING:-settings.MARGING,
-                             settings.MARGING:-settings.MARGING]
+    margin = infer_margin_size_from_world(world)
+    word_in_margings = world[margin:-margin, margin:-margin, margin:-margin]
     assert word_in_margings.shape == assembled_puzzle_shape.shape
     world_rotations = rotations24(word_in_margings)
     for i in range(world_rotations.shape[0]):
@@ -45,10 +52,9 @@ def check(world):
          a) no figures overlap in space
          b) no figures are outside of the 3x3x3 cube
     """
+    margin = infer_margin_size_from_world(world)
     return np.sum(world > 1) == 0 and \
-        (np.sum(world) - np.sum(world[settings.MARGING:-settings.MARGING,
-                                      settings.MARGING:-settings.MARGING,
-                                      settings.MARGING:-settings.MARGING])) == 0
+        (np.sum(world) - np.sum(world[margin:-margin, margin:-margin, margin:-margin])) == 0
 
 
 def explore(pieces, assembled_puzzle_shape=np.ones((3, 3, 3)), max_solutions=None, verbose=True):
@@ -66,14 +72,18 @@ def explore(pieces, assembled_puzzle_shape=np.ones((3, 3, 3)), max_solutions=Non
         return []
 
     soFar = List.empty_list(numba.core.types.Tuple([numba.types.int32[:, :], numba.types.int32[:]]))
-    world = np.zeros((np.max(assembled_puzzle_shape.shape) + 2 * settings.MARGING,) * 3, np.int32)
+    # Based on the heuristic that a puzzle of size SxSxS needs a margin of S on each side to make sure we don't
+    # try to place pieces outside the world array representation, assuming pieces are at most of size S.
+    margin = assembled_puzzle_shape.shape[0]
+    world = np.zeros((assembled_puzzle_shape.shape[0] + 2 * margin,) * 3, np.int32)
     n_pieces = len(pieces)
 
     pieces = List(pieces)
+
     # Generate all posible locations [(0,0,0), (0,0,1), ...]
-    locations = np.asarray(list(itertools.product(range(world.shape[0] - 2 * settings.MARGING),
-                                                  range(world.shape[1] - 2 * settings.MARGING),
-                                                  range(world.shape[2] - 2 * settings.MARGING))), dtype=np.int32)
+    locations = np.asarray(list(itertools.product(range(world.shape[0] - 2 * margin),
+                                                  range(world.shape[1] - 2 * margin),
+                                                  range(world.shape[2] - 2 * margin))), dtype=np.int32)
 
     first_level_branches_to_explore = []
 
@@ -103,7 +113,7 @@ def explore(pieces, assembled_puzzle_shape=np.ones((3, 3, 3)), max_solutions=Non
             for solution in solutions_from_brach:
                 solutions.append(solution)
 
-            solutions = findUnique(solutions)
+            solutions = findUnique(solutions, world_with_margings_shape=world.shape)
             if verbose and len(solutions) > 0 and len(solutions_from_brach) > 0:
                 print(f"Found {len(solution)} unique solutions.")
             if max_solutions is not None and len(solutions) > max_solutions:
@@ -125,7 +135,7 @@ def explore_deep(pieces, n_pieces, world, soFar, solutions, assembled_puzzle_sha
                     soFarT = soFar.copy()
                     soFarT.append((orient, location))
                     solutions.append(soFarT)
-                    solutions = findUnique(solutions)
+                    solutions = findUnique(solutions, world_with_margings_shape=world.shape)
                     n_solutions = len(solutions)
 
                     if max_solutions is not None and n_solutions > max_solutions:
@@ -145,7 +155,7 @@ def explore_deep(pieces, n_pieces, world, soFar, solutions, assembled_puzzle_sha
 
 
 @jit(nopython=True, nogil=True)
-def findUnique(solutions, verbose=False):
+def findUnique(solutions, world_with_margings_shape, verbose=False):
     """
     Takes a set of non-unique solutions to a 3x3x3 puzzle and returns a list of unique solutions. That is, given
     a solution, do not consider the 26 rotated versions of that cube as different solutions.
@@ -171,7 +181,7 @@ def findUnique(solutions, verbose=False):
     # initialize a list with the fingerprints of unique solutions
     # in this context a fingerprint is a 3x3x3 matrix where each entry is an integer representing
     # the figure that occupies that region of space. Each figure/piece has a different integer identifier
-    unique_finger = [fingerprint(solutions[0])]
+    unique_finger = [fingerprint(solutions[0], world_with_margings_shape=world_with_margings_shape)]
 
     if verbose:
         print("Unique found... ")
@@ -182,7 +192,7 @@ def findUnique(solutions, verbose=False):
     for suc in solutions[1:]:
 
         # generate the 24 rotated versions of one fingerprint of the solution
-        rots = rotations24(fingerprint(suc))
+        rots = rotations24(fingerprint(suc, world_with_margings_shape=world_with_margings_shape))
 
         # by default, assume this solution is one we have not seen before
         unique_flag = True
@@ -198,7 +208,7 @@ def findUnique(solutions, verbose=False):
         # is indeed new. We add it to the list of unique solutions, and its fingerprint to the list of
         # fingerprints.
         if unique_flag:
-            unique_finger.append(fingerprint(suc))
+            unique_finger.append(fingerprint(suc, world_with_margings_shape=world_with_margings_shape))
             unique_success.append(suc)
             if verbose:
                 print("Unique found... ")

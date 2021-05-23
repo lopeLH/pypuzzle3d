@@ -1,6 +1,16 @@
 import numpy as np
 from numba import jit
 
+@jit(nopython=True, nogil=True)
+def infer_margin_size_from_world(world):
+    #assert len(world.shape) == 3
+    #assert world.shape[0] == world.shape[1] == world.shape[2]
+
+    # Based on the heuristic that a puzzle of size SxSxS needs a margin of S on each side to make sure we don't
+    # try to place pieces outside the world array representation, assuming pieces are at most of size S.
+    assert world.shape[0] % 3 == 0
+    return int(world.shape[0] / 3)
+
 
 @jit(nopython=True, nogil=True)
 def itertools_product(elements1, elements2, elements3):
@@ -58,15 +68,15 @@ def rotations24(piece):
 
 
 @jit(nopython=True, nogil=True)
-def fingerprint(sol):
-    world = np.zeros((7, 7, 7), np.int32)
-    keys = np.arange(1, 100)
+def fingerprint(sol, world_with_margings_shape):
+    world = np.zeros(world_with_margings_shape, np.int32)
     index = 0
+    margin = infer_margin_size_from_world(world)
     for p, l in sol:
         for i in range(p.shape[0]):
-            world[2+l[0]+p[i][0], 2+l[1]+p[i][1], 2+l[2]+p[i][2]] = keys[index]
+            world[margin+l[0]+p[i][0], margin+l[1]+p[i][1], margin+l[2]+p[i][2]] = index
         index += 1
-    return world[2:5, 2:5, 2:5]
+    return world[margin:-margin, margin:-margin, margin:-margin]
 
 
 def piece_to_unique_rotations_as_block_lists(piece):

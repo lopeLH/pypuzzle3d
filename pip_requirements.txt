@@ -1,6 +1,6 @@
 numpy==1.19
 numba
 seaborn
-scipy==1.5
+scipy==1.10.0
 matplotlib==3.2
 pytest
